@@ -19,6 +19,7 @@ SatQuery AI enables decision-makers to query multi-spectral (Sentinel-2) and Syn
 |---|---|
 | [`PRD.md`](./PRD.md) | Product Requirements Document (User personas, Functional & Non-Functional Requirements, Success Metrics) |
 | [`techarchitecture.md`](./techarchitecture.md) | Deep Technical Architecture (Affine coordinate math, SAR dB calculations, LangGraph schema, API specs) |
+| [`deployment.md`](./deployment.md) | CI/CD Automation, Docker Containerization & Autonomous Building Pipeline |
 | [`plan.md`](./plan.md) | 4-Week Step-by-Step Implementation Roadmap with daily self-check milestones |
 | [`CLAUDE.md`](./CLAUDE.md) | Project instructions, coding rules, environment setup, and anti-disqualification standards |
 | [`SIH26167.md`](./SIH26167.md) | Master Problem Statement specification, code templates, and 3-5 minute judge pitch script |
