@@ -52,13 +52,13 @@ This file defines project instructions, developer workflows, and operational sta
 # Environment setup
 python3 -m venv venv
 source venv/bin/activate
-pip install fastapi uvicorn rasterio numpy opencv-python-headless geopandas shapely langgraph torch transformers
+pip install -r backend/requirements.txt
 
 # Start Backend Server
-uvicorn app.main:app --reload --port 8000
+cd backend && uvicorn app.main:app --reload --port 8000
 
 # Run Verification Self-Checks
-python -m unittest discover app/tests
+cd backend && python -m pytest tests/        # 50 passed, 1 live-gated
 ```
 
 ### Frontend Setup & Execution
@@ -67,11 +67,28 @@ python -m unittest discover app/tests
 cd frontend
 npm install
 npm run dev
+npm run lint && npm run build               # gate (must be exit 0)
 ```
 
 ---
 
-## 5. Defense against Hackathon Disqualifications
+## 5. Live Environments & Known Gotchas (2026-09-05)
+
+- **Backend (Render):** `https://sih26167-xqgi.onrender.com` — Dockerfile context is `backend/`, so
+  code lives at `/app/app/` in the container (`DEMO_DIR=/app/data/demo/`). Health: `/health`, `/healthz`.
+- **Frontend (Vercel):** `https://sih-26167.vercel.app` — Root Dir `frontend/`; `vercel.json`
+  proxies `/api/*` → Render and `/(.*)` → `/index.html`.
+- **MapLibre worker:** import MUST use `?worker&url` (not `?url`) or the shared chunk 404s → blank map.
+- **VLM narrative:** plain text only — `_sanitize_narrative` strips Markdown + repairs `0.37.56` →
+  `0.3756`. Runtime keys: `OPEN_ROUTER` (or `OPENROUTER_API_KEY`), `SATQUERY_VLM_MODEL`,
+  `SATQUERY_VLM_ENABLED=0` = deterministic offline.
+- **CARTO tile key** `cb1_2xx6_1_513fdfc95d1125751297f712` lives in MapComponent; keep attribution.
+- **Branches:** `main` = release baseline; `staging` = working branch; ship via squash PR, then
+  realign `staging` to `main`.
+
+---
+
+## 6. Defense against Hackathon Disqualifications
 1. **Never mock GeoTIFF parsing with plain JPEGs.** Always use `rasterio` or `gdal`.
 2. **Never return raw pixel bounding boxes.** Always convert pixel coordinates to EPSG:4326 Lat/Lon polygons using the raster's affine matrix.
 3. **Always demonstrate SAR radar handling** for all-weather/monsoon cloud-penetration scenarios.

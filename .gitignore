@@ -40,4 +40,8 @@ data/*.tif
 data/*.tiff
 data/*.nc
 data/large_samples/
+backend/data/
 .DS_Store
+
+# Farm run artifacts (transient)
+farm/results/

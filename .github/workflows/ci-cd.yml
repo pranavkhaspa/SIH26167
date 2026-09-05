@@ -1,14 +1,14 @@
-name: SatQuery AI CI/CD Pipeline
+name: SatQuery AI CI & Auto-Deploy Pipeline
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, staging ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, staging ]
 
 jobs:
   test-backend:
-    name: Run Backend Spatial & Agent Unit Tests
+    name: Run Backend Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -18,6 +18,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache APT GDAL packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-gdal-${{ hashFiles('.github/workflows/ci-cd.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-gdal-
 
       - name: Install System GDAL
         run: |
@@ -27,38 +36,53 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov rasterio numpy fastapi httpx langgraph
+          pip install -r backend/requirements.txt
 
-      - name: Run Pytest Suite
+      - name: Run Pytest
+        working-directory: backend
         run: |
-          pytest backend/tests/ --doctest-modules || true
+          pytest tests/ --doctest-modules
 
-  build-and-deploy:
-    name: Build Docker Images & Deploy
-    needs: test-backend
+  build-frontend:
+    name: Build & Lint Frontend
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry (GHCR)
-        uses: docker/login-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Build & Push Backend Container
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ghcr.io/${{ github.repository }}/backend:latest
+      - name: Install Dependencies
+        working-directory: frontend
+        run: npm ci
 
-      - name: Build & Push Frontend Container
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: ghcr.io/${{ github.repository }}/frontend:latest
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Lint Frontend
+        working-directory: frontend
+        run: npm run lint
+
+  trigger-deploys:
+    name: Trigger Render & Vercel Deploy Hooks
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    steps:
+      - name: Trigger Render Backend Deploy Hook
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          fi
+
+      - name: Trigger Vercel Frontend Deploy Hook
+        run: |
+          if [ -n "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+          fi
